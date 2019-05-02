@@ -69,6 +69,23 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu){ //Skapar funktionalitet till menyknappen
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item){
+        int id= item.getItemId();
+        if (id == R.id.action_refresh){
+            adapter.clear(); //Rensar listviewen
+            new FetchData().execute(); //Refreshar listviewen
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
     private class FetchData extends AsyncTask<Void,Void,String>{
         @Override
         protected String doInBackground(Void... params) {
@@ -145,11 +162,10 @@ public class MainActivity extends AppCompatActivity {
                     Log.d("brom",  william.getString("name"));
                     Log.d("brom",  william.getString("location"));
                     Log.d("brom",  ""+william.getInt("size"));
-                    //Log.d("brom",  n.toString());
 
-                    Mountain m = new Mountain(william.getString("name"),william.getString("location"),william.getInt("size") );
-                    Log.d("brom",  m.toString());
-                    adapter.add(m);
+                    Mountain mountain = new Mountain(william.getString("name"),william.getString("location"),william.getInt("size") ); //Skapar nytt berg med datan som hämtas från länken
+                    Log.d("brom",  mountain.toString());
+                    adapter.add(mountain); //Det nya berget läggs till i adaptern
                 }
             } catch (JSONException e) {
                 Log.e("brom","E:"+e.getMessage());
