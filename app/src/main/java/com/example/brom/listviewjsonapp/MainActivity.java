@@ -38,26 +38,23 @@ import java.util.Arrays;
 
 
 public class MainActivity extends AppCompatActivity {
-    private String[] mountainNames = {"Matterhorn","Mont Blanc","Denali", "Billingen"}; //Ifall man vill att nya berg ska skapas så får man inmata datan i de olika bergarrayerna
-    private String[] mountainLocations = {"Alps","Alps","Alaska", "Sweden"};
-    private int[] mountainHeights ={4478,4808,6190, 304};
+    private String[] mountainNames = {""};  //Strängarray med bergnamn som fylls utifrån
+    private String[] mountainLocations = {""}; //Strängarray med bergplatser som fylls utifrån
+    private int[] mountainHeights ={4478,4808,6190, 304}; //Heltalsarray med berghöjder som fylls utifrån
     // Create ArrayLists from the raw data above and use these lists when populating your ListView.
-    private ArrayList<String> listData = new ArrayList<>(Arrays.asList(mountainNames));
-    private ArrayList<Mountain> mountainArrayList=new ArrayList<>();
 
+    private ArrayList<String> listData;
+    private ArrayAdapter<Mountain> adapter;
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        //Lägger samman den inkluderade bergdatan och adderar dem till arraylistan om berg.
-        for(int i = 0; i < mountainNames.length; i++){
-            mountainArrayList.add(new Mountain(mountainNames[i],mountainLocations[i],mountainHeights[i]));
-        }
 
+        new FetchData().execute();
 
-        //Skapar en arrayadapter som lägger ihop ListViewen från list_item_textview och inställningarna från activity_main med datan som ska användas (ArrayAdaptern)
-        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, R.layout.list_item_textview, R.id.list_item_textview, listData);
+        //Skapar en arrayadapter för bergdatan
+        adapter = new ArrayAdapter<Mountain>(this,R.layout.list_item_textview,R.id.list_item_textview);
         ListView my_listview=(ListView)findViewById(R.id.my_listview);
         my_listview.setAdapter(adapter);
 
@@ -67,9 +64,100 @@ public class MainActivity extends AppCompatActivity {
             public void onItemClick(AdapterView<?> adapterView, View view, int position, long l) {
 
                 //Hämtar informationen som skapas i Mountain-klasses och visar den som en toast
-                Toast.makeText(getApplicationContext(), mountainArrayList.get(position).info(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(getApplicationContext(), adapter.getItem(position).info(), Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private class FetchData extends AsyncTask<Void,Void,String>{
+        @Override
+        protected String doInBackground(Void... params) {
+            // These two variables need to be declared outside the try/catch
+            // so that they can be closed in the finally block.
+            HttpURLConnection urlConnection = null;
+            BufferedReader reader = null;
+
+            // Will contain the raw JSON response as a Java string.
+            String jsonStr = null;
+
+            try {
+                // Construct the URL for the Internet service
+                URL url = new URL("http://wwwlab.iit.his.se/brom/kurser/mobilprog/dbservice/admin/getdataasjson.php?type=brom");
+
+                // Create the request to the PHP-service, and open the connection
+                urlConnection = (HttpURLConnection) url.openConnection();
+                urlConnection.setRequestMethod("GET");
+                urlConnection.connect();
+
+                // Read the input stream into a String
+                InputStream inputStream = urlConnection.getInputStream();
+                StringBuffer buffer = new StringBuffer();
+                if (inputStream == null) {
+                    // Nothing to do.
+                    return null;
+                }
+                reader = new BufferedReader(new InputStreamReader(inputStream));
+
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    // Since it's JSON, adding a newline isn't necessary (it won't affect parsing)
+                    // But it does make debugging a *lot* easier if you print out the completed
+                    // buffer for debugging.
+                    buffer.append(line + "\n");
+                }
+
+                if (buffer.length() == 0) {
+                    // Stream was empty.  No point in parsing.
+                    return null;
+                }
+                jsonStr = buffer.toString();
+                return jsonStr;
+            } catch (IOException e) {
+                Log.e("PlaceholderFragment", "Error ", e);
+                // If the code didn't successfully get the weather data, there's no point in
+                // attempting to parse it.
+                return null;
+            } finally{
+                if (urlConnection != null) {
+                    urlConnection.disconnect();
+                }
+                if (reader != null) {
+                    try {
+                        reader.close();
+                    } catch (final IOException e) {
+                        Log.e("Network error", "Error closing stream", e);
+                    }
+                }
+            }
+        }
+        @Override
+        protected void onPostExecute(String o) {
+            super.onPostExecute(o);
+            Log.d("brom","DataFetched:"+o);
+            // This code executes after we have received our data. The String object o holds
+            // the un-parsed JSON string or is null if we had an IOException during the fetch.
+            try {
+
+                JSONArray williamArr= new JSONArray(o);
+                for(int i=0; i < williamArr.length(); i++) {
+                    Log.d("brom", "element 0:" + williamArr.get(i).toString());
+                    JSONObject william = williamArr.getJSONObject(i);
+                    Log.d("brom",  william.getString("name"));
+                    Log.d("brom",  william.getString("location"));
+                    Log.d("brom",  ""+william.getInt("size"));
+                    //Log.d("brom",  n.toString());
+
+                    Mountain m = new Mountain(william.getString("name"),william.getString("location"),william.getInt("size") );
+                    Log.d("brom",  m.toString());
+                    adapter.add(m);
+                }
+            } catch (JSONException e) {
+                Log.e("brom","E:"+e.getMessage());
+            }
+
+            // Implement a parsing code that loops through the entire JSON and creates objects
+            // of our newly created Mountain class.
+        }
     }
 
 }
